@@ -5,327 +5,142 @@ output:
     keep_md: true
 ---
 
+# Reproducible Research: Peer Assessment 1
+
 
 ## Loading and preprocessing the data
-
-The following is the description of the dataset on the website of this assignment:
-
->This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
-
-The data set variables are:
-1. **steps**: Number of steps with 5-minute interval 
-2. **date**: The date on which the measurement was taken in the YYYY-MM-DD format 
-3. **interval**: Identifier of interval of data gathering
-
-To read the dataset into a data frame the following script is used:
+The code below loads the data into the environment, the date variable will then be converted into the Date-only format and the interval variable will be used as a grouping factor.
 
 
 ```r
-dat = read.csv('activity.csv', header = T)
-names(dat)
-```
+data <- read.csv("activity.csv")
 
+data$date <- as.Date(data$date,format="%Y-%m-%d")
+data$interval <- as.factor(data$interval)
 ```
-## [1] "steps"    "date"     "interval"
-```
-
-```r
-str(dat)
-```
-
-```
-## 'data.frame':	17568 obs. of  3 variables:
-##  $ steps   : int  NA NA NA NA NA NA NA NA NA NA ...
-##  $ date    : Factor w/ 61 levels "2012-10-01","2012-10-02",..: 1 1 1 1 1 1 1 1 1 1 ...
-##  $ interval: int  0 5 10 15 20 25 30 35 40 45 ...
-```
-
-```r
-head(dat)
-```
-
-```
-##   steps       date interval
-## 1    NA 2012-10-01        0
-## 2    NA 2012-10-01        5
-## 3    NA 2012-10-01       10
-## 4    NA 2012-10-01       15
-## 5    NA 2012-10-01       20
-## 6    NA 2012-10-01       25
-```
-
-Please note that the `names`, `str`, and `head` functions are called for data inspection.
 
 ## What is mean total number of steps taken per day?
 
-To check the mean total number of steps taken per day we need to build a histogram with the data summary:
+In this part all the raw data will be summarized by date, and the total number of steps taken per day will be calculated.
 
+A histogram will be generated showing the distribution of the total number of steps taken per day (see Fig. 1). The mean and median total number of steps taken per day are also calculated and reported. For this calculations the library plyr will be necessary.
 
-```r
-library(data.table)
-```
-
-```
-## Error in library(data.table): there is no package called 'data.table'
-```
-
-```r
-dat_tbl = data.table(dat)
-```
-
-```
-## Error in eval(expr, envir, enclos): não foi possível encontrar a função "data.table"
-```
-
-```r
-# get the summary of steps per day
-dat_tbl_summary = dat_tbl[, list(total_steps = sum(steps, na.rm = TRUE)), 
-                          by = date]
-```
-
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl' não encontrado
-```
-
-And with the summarized data we build a histogram:
 
 
 ```r
-gen_hist = function(x, title){
-    hist(x, 
-         zbreaks = 20,
-         main = title,
-         xlab = 'Total Number of Steps', 
-         col = 'grey',
-          cex.main = .9)
-        
-        mean_value = round(mean(x), 1)
-        median_value = round(median(x), 1)
-        
-        abline(v=mean_value, lwd = 3, col = 'blue')
-        abline(v=median_value, lwd = 3, col = 'red')
-        
-        legend('topright', lty = 1, lwd = 3, col = c("blue", "red"),
-               cex = .8, 
-               legend = c(paste('Mean: ', mean_value),
-               paste('Median: ', median_value)))
-}
+library("plyr")
+dfPerDate <- ddply(data,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
 
-gen_hist(dat_tbl_summary$total_steps, 'Steps Taken Per Day')
+meanTotalStepsPerDay <- mean(dfPerDate$sumSteps,na.rm=TRUE)
+medianTotalStepsPerDay <- median(dfPerDate$sumSteps,na.rm=TRUE)
+
+hist(dfPerDate$sumSteps,col="red", xlab="Daily Total Steps",main="Total number of steps taken each day",breaks=10)
 ```
 
-```
-## Error in hist(x, zbreaks = 20, main = title, xlab = "Total Number of Steps", : objeto 'dat_tbl_summary' não encontrado
-```
+![plot of chunk unnamed-chunk-2](figure/unnamed-chunk-2-1.png) 
+
+
+**Fig. 1:** Histogram of the total number of steps taken each day.
+
 
 ## What is the average daily activity pattern?
 
+In this section the data frame is summarized by intervals (5 minutes) and for each interval the mean of number of steps taken is calculated across all days. Then a time series plot (see Fig. 2) is generated showing the average number of steps taken per interval across all days. 
+
 
 ```r
-# summarize dataset by interval
-dat_tbl_summary_intv = dat_tbl[, list(avg_steps = mean(steps, na.rm = T)), 
-                          by = interval]
+dfPerInterval <- ddply(data,~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+intervalWithMostSteps <- dfPerInterval$interval[dfPerInterval$meanSteps == max(dfPerInterval$meanSteps)]
+
+with(dfPerInterval, plot(interval,meanSteps, type = "l",xlab="Interval",ylab="Mean number of steps",main="Average number of steps taken per 5-min interval"))
+with(dfPerInterval, lines(interval,meanSteps))
 ```
 
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl' não encontrado
-```
+![plot of chunk unnamed-chunk-3](figure/unnamed-chunk-3-1.png) 
 
-```r
-# plot the time series
-with(dat_tbl_summary_intv, {
-        plot(interval, avg_steps, type = 'l',
-             main = 'Average Steps by Time Interval',
-             xlab = '5 Minute Time Interval',
-             ylab = 'Average Number of Steps')
-        })
-```
+**Fig. 2:** time series plot of the 5-minute interval and the average number of steps taken, averaged across all days.
 
-```
-## Error in with(dat_tbl_summary_intv, {: objeto 'dat_tbl_summary_intv' não encontrado
-```
+The interval with the maximum number of steps is "835".
 
-```r
-# get the interval with the max avg steps
-max_steps = dat_tbl_summary_intv[which.max(avg_steps), ]
-```
-
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl_summary_intv' não encontrado
-```
-
-```r
-max_lab = paste('Maximum Of ', round(max_steps$avg_steps, 1), ' Steps \n On ', max_steps$interval, 'th Time Interval', sep = '')
-```
-
-```
-## Error in paste("Maximum Of ", round(max_steps$avg_steps, 1), " Steps \n On ", : objeto 'max_steps' não encontrado
-```
-
-```r
-points(max_steps$interval,  max_steps$avg_steps, col = 'red', lwd = 3, pch = 19)
-```
-
-```
-## Error in points(max_steps$interval, max_steps$avg_steps, col = "red", : objeto 'max_steps' não encontrado
-```
-
-```r
-legend("topright",
-       legend = max_lab,
-       text.col = 'red',
-       bty = 'n'
-       )
-```
-
-```
-## Error in as.graphicsAnnot(legend): objeto 'max_lab' não encontrado
-```
 
 ## Imputing missing values
 
-The number of missing values is:
+The objective of this part is to threat the missing values found in the dataset. The average steps taken is used to fill the gaps.
+
+An histogram similar to _Fig.1_ is then generated to show the distribution of the total number of steps taken each day for the generated (_see Fig. 3_). The mean and median total number of steps taken per day for the inputed data are also calculated and reported.
 
 
 ```r
-    sum(is.na(dat$steps))
-```
+NumMissing <- sum(is.na(data$steps))
 
-```
-## [1] 2304
-```
+inputedData <- data
 
-The strategy to fill the NA values
-
-
-```r
-setkey(dat_tbl, interval)
-```
-
-```
-## Error in eval(expr, envir, enclos): não foi possível encontrar a função "setkey"
-```
-
-```r
-setkey(dat_tbl_summary_intv, interval)
-```
-
-```
-## Error in eval(expr, envir, enclos): não foi possível encontrar a função "setkey"
-```
-
-```r
-NA_replace = function(x,y){
-        if(is.na(x)){              
-                return(y)
-        }
-        return(x)
+# Replacing the missing values with the mean for that 5-minute interval across days
+for (i in which(is.na(data$steps))) {
+  inputedData$steps[i] <- dfPerInterval$meanSteps[which(dfPerInterval$interval==inputedData$interval[i])]
 }
 
-dat_tbl_miss = dat_tbl[dat_tbl_summary_intv]
+newdfPerDate <- ddply(inputedData,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+newmeanTotalStepsPerDay <- mean(newdfPerDate$sumSteps,na.rm=TRUE)
+newmedianTotalStepsPerDay <- median(newdfPerDate$sumSteps,na.rm=TRUE)
+
+hist(newdfPerDate$sumSteps,col="red", xlab="Daily Total Steps",main="Total steps per day -- inputed data",breaks=10)
 ```
 
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl' não encontrado
-```
+![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png) 
 
-```r
-dat_tbl_miss$new_steps = mapply(NA_replace,dat_tbl_miss$steps, dat_tbl_miss$avg_steps)
-```
-
-```
-## Error in mapply(NA_replace, dat_tbl_miss$steps, dat_tbl_miss$avg_steps): objeto 'dat_tbl_miss' não encontrado
-```
-
-```r
-dat_tbl_summary_miss = dat_tbl_miss[, list(new_steps = sum(new_steps, na.rm = T)), by = date]
-```
-
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl_miss' não encontrado
-```
-
-```r
-# check the new data set
-head(dat_tbl_summary_miss)
-```
-
-```
-## Error in head(dat_tbl_summary_miss): objeto 'dat_tbl_summary_miss' não encontrado
-```
-
-The following script answer the question 4 of this topic.
+**Fig. 3:** Histogram of the total number of steps taken daily for the inputed data.
 
 
-```r
-gen_hist(dat_tbl_summary$total_steps, 'Missing Values Removed')
-```
+There are 2304 missing values in the dataset. The missing values were then replaced with the mean for that 5-minute interval across days.
 
-```
-## Error in hist(x, zbreaks = 20, main = title, xlab = "Total Number of Steps", : objeto 'dat_tbl_summary' não encontrado
-```
 
-```r
-gen_hist(dat_tbl_summary_miss$new_steps, 'Missing Values Replaced With \n Mean For Interval')
-```
+The **mean** and **median** of total number of steps taken per day are **1.0766189 &times; 10<sup>4</sup>** and **1.0766189 &times; 10<sup>4</sup>**, respectively.
 
-```
-## Error in hist(x, zbreaks = 20, main = title, xlab = "Total Number of Steps", : objeto 'dat_tbl_summary_miss' não encontrado
-```
+The mean and median of the total number of steps taken daily increased after data imputing.
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
+In this section, the generated data is splitted into 2 subgroups by the date that the data was collected. The groups contain data collected during weekdays and weekends, respectively.
 
-```r
-# Function to check if its weekday or not
-weekpart = function(x){
-        if(x %in% c('Saturday', 'Sunday')){
-                return('Weekend')
-        }
-        return('Weekday')
-}
+A panel plot is generated to show the activity pattern for weekdays and weekends (_See Fig. 3_).
 
-dat_tbl_miss$dayname = weekdays(as.Date(dat_tbl_miss$date))
-```
-
-```
-## Error in as.Date(dat_tbl_miss$date): objeto 'dat_tbl_miss' não encontrado
-```
-
-```r
-dat_tbl_miss$daytype = as.factor(apply(as.matrix(dat_tbl_miss$dayname), 1, weekpart))
-```
-
-```
-## Error in as.matrix(dat_tbl_miss$dayname): objeto 'dat_tbl_miss' não encontrado
-```
-
-```r
-dat_tbl_summary_miss = dat_tbl_miss[, list(avg_steps = mean(new_steps, na.rm = T)), by = list(interval, daytype)]
-```
-
-```
-## Error in eval(expr, envir, enclos): objeto 'dat_tbl_miss' não encontrado
-```
-
-```r
-str(dat_tbl_summary_miss)
-```
-
-```
-## Error in str(dat_tbl_summary_miss): objeto 'dat_tbl_summary_miss' não encontrado
-```
+For this part the package **timeDate** is required.
 
 
 ```r
-library(lattice)
-xyplot(avg_steps~interval | daytype, data = dat_tbl_summary_miss,
-      type = 'l',
-      xlab = 'Interval',
-      ylab = 'Number of Steps',
-      layout = c(1,2))
+require(timeDate)
+
+inputedData$dayoftheweek <- as.factor(isWeekend(inputedData$date))
+levels(inputedData$dayoftheweek ) <- c("weekday","weekend")
+
+newdf <- ddply(inputedData,dayoftheweek~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+# Sebsetting the dataset
+weekdaydata <- subset(newdf,dayoftheweek=="weekday")
+weekenddata <- subset(newdf,dayoftheweek=="weekend")
+
+# generating the required plots
+
+par(mfrow=c(2,1))
+
+with(weekdaydata,plot(x=interval,y=meanSteps, type = "n",xlab="",ylab="Mean number of steps",main="Average number of steps taken per 5-min interval"))
+
+with(weekdaydata, lines(interval,meanSteps,col="blue"))
+
+legend("topright",lty="solid",col = "blue",legend="weekday")
+
+with(weekenddata,plot(x=interval,y=meanSteps, type = "n",xlab="interval",ylab="Mean number of steps",main=""))
+
+with(weekenddata, lines(interval,meanSteps,col="red"))
+legend("topright",lty="solid",col = "red",legend="weekend")
 ```
 
-```
-## Error in eval(substitute(groups), data, environment(x)): objeto 'dat_tbl_summary_miss' não encontrado
-```
+![plot of chunk unnamed-chunk-5](figure/unnamed-chunk-5-1.png) 
+
+
+**Fig. 3:** Activity pattern for weekdays and weekends.
+

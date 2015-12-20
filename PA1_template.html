@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>Reproducible Research: Peer Assessment 1</title>
+
+<script type="text/javascript">
+window.onload = function() {
+  var imgs = document.getElementsByTagName('img'), i, img;
+  for (i = 0; i < imgs.length; i++) {
+    img = imgs[i];
+    // center an image if it is the only element of its parent
+    if (img.parentElement.childElementCount === 1)
+      img.parentElement.style.textAlign = 'center';
+  }
+};
+</script>
+
+
+
+
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 13px;
+}
+
+body {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 20px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 {
+   font-size:2.2em;
+}
+
+h2 {
+   font-size:1.8em;
+}
+
+h3 {
+   font-size:1.4em;
+}
+
+h4 {
+   font-size:1.0em;
+}
+
+h5 {
+   font-size:0.9em;
+}
+
+h6 {
+   font-size:0.8em;
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre, img {
+  max-width: 100%;
+}
+pre {
+  overflow-x: auto;
+}
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code {
+  font-size: 92%;
+  border: 1px solid #ccc;
+}
+
+code[class] {
+  background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * {
+      background: transparent !important;
+      color: black !important;
+      filter:none !important;
+      -ms-filter: none !important;
+   }
+
+   body {
+      font-size:12pt;
+      max-width:100%;
+   }
+
+   a, a:visited {
+      text-decoration: underline;
+   }
+
+   hr {
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote {
+      padding-right: 1em;
+      page-break-inside: avoid;
+   }
+
+   tr, img {
+      page-break-inside: avoid;
+   }
+
+   img {
+      max-width: 100% !important;
+   }
+
+   @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+   }
+
+   @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+   }
+
+   p, h2, h3 {
+      orphans: 3; widows: 3;
+   }
+
+   h2, h3 {
+      page-break-after: avoid;
+   }
+}
+</style>
+
+
+
+</head>
+
+<body>
+<h1>Reproducible Research: Peer Assessment 1</h1>
+
+<h2>Loading and preprocessing the data</h2>
+
+<p>The code below loads the data into the environment, the date variable will then be converted into the Date-only format and the interval variable will be used as a grouping factor.</p>
+
+<pre><code class="r">data &lt;- read.csv(&quot;activity.csv&quot;)
+
+data$date &lt;- as.Date(data$date,format=&quot;%Y-%m-%d&quot;)
+data$interval &lt;- as.factor(data$interval)
+</code></pre>
+
+<h2>What is mean total number of steps taken per day?</h2>
+
+<p>In this part all the raw data will be summarized by date, and the total number of steps taken per day will be calculated.</p>
+
+<p>A histogram will be generated showing the distribution of the total number of steps taken per day (see Fig. 1). The mean and median total number of steps taken per day are also calculated and reported. For this calculations the library plyr will be necessary.</p>
+
+<pre><code class="r">library(&quot;plyr&quot;)
+dfPerDate &lt;- ddply(data,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+meanTotalStepsPerDay &lt;- mean(dfPerDate$sumSteps,na.rm=TRUE)
+medianTotalStepsPerDay &lt;- median(dfPerDate$sumSteps,na.rm=TRUE)
+
+hist(dfPerDate$sumSteps,col=&quot;red&quot;, xlab=&quot;Daily Total Steps&quot;,main=&quot;Total number of steps taken each day&quot;,breaks=10)
+</code></pre>
+
+<p><img src="figure/unnamed-chunk-2-1.png" alt="plot of chunk unnamed-chunk-2"> </p>
+
+<p><strong>Fig. 1:</strong> Histogram of the total number of steps taken each day.</p>
+
+<h2>What is the average daily activity pattern?</h2>
+
+<p>In this section the data frame is summarized by intervals (5 minutes) and for each interval the mean of number of steps taken is calculated across all days. Then a time series plot (see Fig. 2) is generated showing the average number of steps taken per interval across all days. </p>
+
+<pre><code class="r">dfPerInterval &lt;- ddply(data,~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+intervalWithMostSteps &lt;- dfPerInterval$interval[dfPerInterval$meanSteps == max(dfPerInterval$meanSteps)]
+
+with(dfPerInterval, plot(interval,meanSteps, type = &quot;l&quot;,xlab=&quot;Interval&quot;,ylab=&quot;Mean number of steps&quot;,main=&quot;Average number of steps taken per 5-min interval&quot;))
+with(dfPerInterval, lines(interval,meanSteps))
+</code></pre>
+
+<p><img src="figure/unnamed-chunk-3-1.png" alt="plot of chunk unnamed-chunk-3"> </p>
+
+<p><strong>Fig. 2:</strong> time series plot of the 5-minute interval and the average number of steps taken, averaged across all days.</p>
+
+<p>The interval with the maximum number of steps is &quot;835&quot;.</p>
+
+<h2>Imputing missing values</h2>
+
+<p>The objective of this part is to threat the missing values found in the dataset. The average steps taken is used to fill the gaps.</p>
+
+<p>An histogram similar to <em>Fig.1</em> is then generated to show the distribution of the total number of steps taken each day for the generated (<em>see Fig. 3</em>). The mean and median total number of steps taken per day for the inputed data are also calculated and reported.</p>
+
+<pre><code class="r">NumMissing &lt;- sum(is.na(data$steps))
+
+inputedData &lt;- data
+
+# Replacing the missing values with the mean for that 5-minute interval across days
+for (i in which(is.na(data$steps))) {
+  inputedData$steps[i] &lt;- dfPerInterval$meanSteps[which(dfPerInterval$interval==inputedData$interval[i])]
+}
+
+newdfPerDate &lt;- ddply(inputedData,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+newmeanTotalStepsPerDay &lt;- mean(newdfPerDate$sumSteps,na.rm=TRUE)
+newmedianTotalStepsPerDay &lt;- median(newdfPerDate$sumSteps,na.rm=TRUE)
+
+hist(newdfPerDate$sumSteps,col=&quot;red&quot;, xlab=&quot;Daily Total Steps&quot;,main=&quot;Total steps per day -- inputed data&quot;,breaks=10)
+</code></pre>
+
+<p><img src="figure/unnamed-chunk-4-1.png" alt="plot of chunk unnamed-chunk-4"> </p>
+
+<p><strong>Fig. 3:</strong> Histogram of the total number of steps taken daily for the inputed data.</p>
+
+<p>There are 2304 missing values in the dataset. The missing values were then replaced with the mean for that 5-minute interval across days.</p>
+
+<p>The <strong>mean</strong> and <strong>median</strong> of total number of steps taken per day are <strong>1.0766189 &times; 10<sup>4</sup></strong> and <strong>1.0766189 &times; 10<sup>4</sup></strong>, respectively.</p>
+
+<p>The mean and median of the total number of steps taken daily increased after data imputing.</p>
+
+<h2>Are there differences in activity patterns between weekdays and weekends?</h2>
+
+<p>In this section, the generated data is splitted into 2 subgroups by the date that the data was collected. The groups contain data collected during weekdays and weekends, respectively.</p>
+
+<p>A panel plot is generated to show the activity pattern for weekdays and weekends (<em>See Fig. 3</em>).</p>
+
+<p>For this part the package <strong>timeDate</strong> is required.</p>
+
+<pre><code class="r">require(timeDate)
+
+inputedData$dayoftheweek &lt;- as.factor(isWeekend(inputedData$date))
+levels(inputedData$dayoftheweek ) &lt;- c(&quot;weekday&quot;,&quot;weekend&quot;)
+
+newdf &lt;- ddply(inputedData,dayoftheweek~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+# Sebsetting the dataset
+weekdaydata &lt;- subset(newdf,dayoftheweek==&quot;weekday&quot;)
+weekenddata &lt;- subset(newdf,dayoftheweek==&quot;weekend&quot;)
+
+# generating the required plots
+
+par(mfrow=c(2,1))
+
+with(weekdaydata,plot(x=interval,y=meanSteps, type = &quot;n&quot;,xlab=&quot;&quot;,ylab=&quot;Mean number of steps&quot;,main=&quot;Average number of steps taken per 5-min interval&quot;))
+
+with(weekdaydata, lines(interval,meanSteps,col=&quot;blue&quot;))
+
+legend(&quot;topright&quot;,lty=&quot;solid&quot;,col = &quot;blue&quot;,legend=&quot;weekday&quot;)
+
+with(weekenddata,plot(x=interval,y=meanSteps, type = &quot;n&quot;,xlab=&quot;interval&quot;,ylab=&quot;Mean number of steps&quot;,main=&quot;&quot;))
+
+with(weekenddata, lines(interval,meanSteps,col=&quot;red&quot;))
+legend(&quot;topright&quot;,lty=&quot;solid&quot;,col = &quot;red&quot;,legend=&quot;weekend&quot;)
+</code></pre>
+
+<p><img src="figure/unnamed-chunk-5-1.png" alt="plot of chunk unnamed-chunk-5"> </p>
+
+<p><strong>Fig. 3:</strong> Activity pattern for weekdays and weekends.</p>
+
+</body>
+
+</html>

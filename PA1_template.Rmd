@@ -5,158 +5,135 @@ output:
     keep_md: true
 ---
 
+# Reproducible Research: Peer Assessment 1
+
 
 ## Loading and preprocessing the data
+The code below loads the data into the environment, the date variable will then be converted into the Date-only format and the interval variable will be used as a grouping factor.
 
-The following is the description of the dataset on the website of this assignment:
+```{r}
+data <- read.csv("activity.csv")
 
->This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+data$date <- as.Date(data$date,format="%Y-%m-%d")
+data$interval <- as.factor(data$interval)
 
-The data set variables are:
-1. **steps**: Number of steps with 5-minute interval 
-2. **date**: The date on which the measurement was taken in the YYYY-MM-DD format 
-3. **interval**: Identifier of interval of data gathering
-
-To read the dataset into a data frame the following script is used:
-
-```{r echo=TRUE}
-dat = read.csv('activity.csv', header = T)
-names(dat)
-str(dat)
-head(dat)
 ```
-
-Please note that the `names`, `str`, and `head` functions are called for data inspection.
 
 ## What is mean total number of steps taken per day?
 
-To check the mean total number of steps taken per day we need to build a histogram with the data summary:
+In this part all the raw data will be summarized by date, and the total number of steps taken per day will be calculated.
 
-```{r echo=TRUE}
-library(data.table)
-dat_tbl = data.table(dat)
+A histogram will be generated showing the distribution of the total number of steps taken per day (see Fig. 1). The mean and median total number of steps taken per day are also calculated and reported. For this calculations the library plyr will be necessary.
 
-# get the summary of steps per day
-dat_tbl_summary = dat_tbl[, list(total_steps = sum(steps, na.rm = TRUE)), 
-                          by = date]
+
+```{r}
+
+library("plyr")
+dfPerDate <- ddply(data,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+meanTotalStepsPerDay <- mean(dfPerDate$sumSteps,na.rm=TRUE)
+medianTotalStepsPerDay <- median(dfPerDate$sumSteps,na.rm=TRUE)
+
+hist(dfPerDate$sumSteps,col="red", xlab="Daily Total Steps",main="Total number of steps taken each day",breaks=10)
+
 ```
 
-And with the summarized data we build a histogram:
 
-```{r echo=TRUE}
-gen_hist = function(x, title){
-    hist(x, 
-         zbreaks = 20,
-         main = title,
-         xlab = 'Total Number of Steps', 
-         col = 'grey',
-          cex.main = .9)
-        
-        mean_value = round(mean(x), 1)
-        median_value = round(median(x), 1)
-        
-        abline(v=mean_value, lwd = 3, col = 'blue')
-        abline(v=median_value, lwd = 3, col = 'red')
-        
-        legend('topright', lty = 1, lwd = 3, col = c("blue", "red"),
-               cex = .8, 
-               legend = c(paste('Mean: ', mean_value),
-               paste('Median: ', median_value)))
-}
+**Fig. 1:** Histogram of the total number of steps taken each day.
 
-gen_hist(dat_tbl_summary$total_steps, 'Steps Taken Per Day')
-```
 
 ## What is the average daily activity pattern?
 
-```{r echo=TRUE}
-# summarize dataset by interval
-dat_tbl_summary_intv = dat_tbl[, list(avg_steps = mean(steps, na.rm = T)), 
-                          by = interval]
-# plot the time series
-with(dat_tbl_summary_intv, {
-        plot(interval, avg_steps, type = 'l',
-             main = 'Average Steps by Time Interval',
-             xlab = '5 Minute Time Interval',
-             ylab = 'Average Number of Steps')
-        })
-        
-# get the interval with the max avg steps
-max_steps = dat_tbl_summary_intv[which.max(avg_steps), ]
+In this section the data frame is summarized by intervals (5 minutes) and for each interval the mean of number of steps taken is calculated across all days. Then a time series plot (see Fig. 2) is generated showing the average number of steps taken per interval across all days. 
 
-max_lab = paste('Maximum Of ', round(max_steps$avg_steps, 1), ' Steps \n On ', max_steps$interval, 'th Time Interval', sep = '')
+```{r}
+dfPerInterval <- ddply(data,~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
 
-points(max_steps$interval,  max_steps$avg_steps, col = 'red', lwd = 3, pch = 19)
+intervalWithMostSteps <- dfPerInterval$interval[dfPerInterval$meanSteps == max(dfPerInterval$meanSteps)]
 
-legend("topright",
-       legend = max_lab,
-       text.col = 'red',
-       bty = 'n'
-       )
+with(dfPerInterval, plot(interval,meanSteps, type = "l",xlab="Interval",ylab="Mean number of steps",main="Average number of steps taken per 5-min interval"))
+with(dfPerInterval, lines(interval,meanSteps))
 
 ```
+
+**Fig. 2:** time series plot of the 5-minute interval and the average number of steps taken, averaged across all days.
+
+The interval with the maximum number of steps is "`r intervalWithMostSteps`".
+
 
 ## Imputing missing values
 
-The number of missing values is:
+The objective of this part is to threat the missing values found in the dataset. The average steps taken is used to fill the gaps.
 
-```{r echo=TRUE}
-    sum(is.na(dat$steps))
-```
+An histogram similar to _Fig.1_ is then generated to show the distribution of the total number of steps taken each day for the generated (_see Fig. 3_). The mean and median total number of steps taken per day for the inputed data are also calculated and reported.
 
-The strategy to fill the NA values
+```{r}
 
-```{r echo=TRUE}
-setkey(dat_tbl, interval)
-setkey(dat_tbl_summary_intv, interval)
+NumMissing <- sum(is.na(data$steps))
 
-NA_replace = function(x,y){
-        if(is.na(x)){              
-                return(y)
-        }
-        return(x)
+inputedData <- data
+
+# Replacing the missing values with the mean for that 5-minute interval across days
+for (i in which(is.na(data$steps))) {
+  inputedData$steps[i] <- dfPerInterval$meanSteps[which(dfPerInterval$interval==inputedData$interval[i])]
 }
 
-dat_tbl_miss = dat_tbl[dat_tbl_summary_intv]
-dat_tbl_miss$new_steps = mapply(NA_replace,dat_tbl_miss$steps, dat_tbl_miss$avg_steps)
+newdfPerDate <- ddply(inputedData,~date,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
 
-dat_tbl_summary_miss = dat_tbl_miss[, list(new_steps = sum(new_steps, na.rm = T)), by = date]
+newmeanTotalStepsPerDay <- mean(newdfPerDate$sumSteps,na.rm=TRUE)
+newmedianTotalStepsPerDay <- median(newdfPerDate$sumSteps,na.rm=TRUE)
 
-# check the new data set
-head(dat_tbl_summary_miss)
+hist(newdfPerDate$sumSteps,col="red", xlab="Daily Total Steps",main="Total steps per day -- inputed data",breaks=10)
+
 ```
 
-The following script answer the question 4 of this topic.
+**Fig. 3:** Histogram of the total number of steps taken daily for the inputed data.
 
-```{r echo=TRUE}
-gen_hist(dat_tbl_summary$total_steps, 'Missing Values Removed')
-gen_hist(dat_tbl_summary_miss$new_steps, 'Missing Values Replaced With \n Mean For Interval')
-```
+
+There are `r NumMissing` missing values in the dataset. The missing values were then replaced with the mean for that 5-minute interval across days.
+
+
+The **mean** and **median** of total number of steps taken per day are **`r newmeanTotalStepsPerDay`** and **`r newmedianTotalStepsPerDay`**, respectively.
+
+The mean and median of the total number of steps taken daily increased after data imputing.
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-```{r echo=TRUE}
-# Function to check if its weekday or not
-weekpart = function(x){
-        if(x %in% c('Saturday', 'Sunday')){
-                return('Weekend')
-        }
-        return('Weekday')
-}
+In this section, the generated data is splitted into 2 subgroups by the date that the data was collected. The groups contain data collected during weekdays and weekends, respectively.
 
-dat_tbl_miss$dayname = weekdays(as.Date(dat_tbl_miss$date))
-dat_tbl_miss$daytype = as.factor(apply(as.matrix(dat_tbl_miss$dayname), 1, weekpart))
+A panel plot is generated to show the activity pattern for weekdays and weekends (_See Fig. 3_).
 
-dat_tbl_summary_miss = dat_tbl_miss[, list(avg_steps = mean(new_steps, na.rm = T)), by = list(interval, daytype)]
+For this part the package **timeDate** is required.
 
-str(dat_tbl_summary_miss)
+```{r}
+require(timeDate)
+
+inputedData$dayoftheweek <- as.factor(isWeekend(inputedData$date))
+levels(inputedData$dayoftheweek ) <- c("weekday","weekend")
+
+newdf <- ddply(inputedData,dayoftheweek~interval,summarise,sumSteps=sum(steps,na.rm=TRUE),meanSteps=mean(steps,na.rm=TRUE),sdSteps=sd(steps,na.rm=TRUE))
+
+# Sebsetting the dataset
+weekdaydata <- subset(newdf,dayoftheweek=="weekday")
+weekenddata <- subset(newdf,dayoftheweek=="weekend")
+
+# generating the required plots
+
+par(mfrow=c(2,1))
+
+with(weekdaydata,plot(x=interval,y=meanSteps, type = "n",xlab="",ylab="Mean number of steps",main="Average number of steps taken per 5-min interval"))
+
+with(weekdaydata, lines(interval,meanSteps,col="blue"))
+
+legend("topright",lty="solid",col = "blue",legend="weekday")
+
+with(weekenddata,plot(x=interval,y=meanSteps, type = "n",xlab="interval",ylab="Mean number of steps",main=""))
+
+with(weekenddata, lines(interval,meanSteps,col="red"))
+legend("topright",lty="solid",col = "red",legend="weekend")
 ```
 
-```{r echo=TRUE}
-library(lattice)
-xyplot(avg_steps~interval | daytype, data = dat_tbl_summary_miss,
-      type = 'l',
-      xlab = 'Interval',
-      ylab = 'Number of Steps',
-      layout = c(1,2))
-```
+
+**Fig. 3:** Activity pattern for weekdays and weekends.
+
